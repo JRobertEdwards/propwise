@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class SearchRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'postcode'        => ['required', 'string', 'max:8'],
+            'radius'          => ['sometimes', 'numeric', 'in:0.5,1,2'],
+            'property_type'   => ['sometimes', 'array'],
+            'property_type.*' => ['in:D,S,T,F,O'],
+            'date_from'       => ['sometimes', 'date', 'before_or_equal:date_to'],
+            'date_to'         => ['sometimes', 'date', 'after_or_equal:date_from'],
+        ];
+    }
+
+    public function radius(): float
+    {
+        return (float) $this->input('radius', 1.0);
+    }
+}

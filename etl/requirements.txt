@@ -1,0 +1,9 @@
+pandas==2.2.3
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
+pyproj==3.7.1
+tqdm==4.67.1
+thefuzz==0.22.1
+python-Levenshtein==0.26.1
+pytest==8.3.5
+pytest-mock==3.14.0
