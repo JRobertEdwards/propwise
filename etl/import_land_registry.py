@@ -78,7 +78,7 @@ def run(filepath: str) -> None:
         ON CONFLICT (transaction_id) DO NOTHING
     """
 
-    for chunk in tqdm(pd.read_csv(filepath, header=None, names=LR_COLUMNS, chunksize=CHUNK_SIZE, dtype=str), desc="Sales"):
+    for chunk in tqdm(pd.read_csv(filepath, header=None, names=LR_COLUMNS, chunksize=CHUNK_SIZE, dtype=str, keep_default_na=False), desc="Sales"):
         rows = [r for r in (transform_row(row) for row in chunk.to_dict('records')) if r]
         if rows:
             db.bulk_insert(conn, sql, rows)

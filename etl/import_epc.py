@@ -79,7 +79,7 @@ def run(filepath: str) -> None:
     """
 
     for chunk in tqdm(
-        pd.read_csv(filepath, usecols=EPC_COLUMNS, chunksize=CHUNK_SIZE, dtype=str, low_memory=False),
+        pd.read_csv(filepath, usecols=EPC_COLUMNS, chunksize=CHUNK_SIZE, dtype=str, low_memory=False, keep_default_na=False),
         desc="EPC"
     ):
         rows = [r for r in (transform_row(row) for row in chunk.to_dict('records')) if r]

@@ -72,6 +72,99 @@
     {{-- General error --}}
     <div x-show="error" class="mt-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700" x-text="error"></div>
 
+    {{-- Area summary panel --}}
+    <div x-show="searched && !summaryError" class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        {{-- Crime --}}
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <h2 class="text-sm font-semibold text-gray-700 mb-3">Crime in this area <span class="font-normal text-gray-400">(last 12 months)</span></h2>
+
+            {{-- Loading skeleton --}}
+            <div x-show="summaryLoading" class="space-y-2 animate-pulse">
+                <template x-for="i in 5" :key="i">
+                    <div class="flex justify-between">
+                        <div class="h-3 bg-gray-200 rounded w-32"></div>
+                        <div class="h-3 bg-gray-200 rounded w-8"></div>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Crime table --}}
+            <div x-show="!summaryLoading && areaSummary">
+                <template x-if="areaSummary?.crime?.length === 0">
+                    <p class="text-sm text-gray-400">No recorded crimes in this area.</p>
+                </template>
+                <template x-if="areaSummary?.crime?.length > 0">
+                    <div>
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-xs text-gray-400 border-b border-gray-100">
+                                    <th class="text-left font-normal pb-1.5">Category</th>
+                                    <th class="text-right font-normal pb-1.5 pr-3">This area</th>
+                                    <th class="text-right font-normal pb-1.5" x-show="crimeComparison" x-text="crimeComparison?.neighbourhood ?? 'Neighbourhood'"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <template x-for="row in mergedCrimeRows()" :key="row.category">
+                                    <tr>
+                                        <td class="py-1 text-gray-600" x-text="formatCrimeCategory(row.category)"></td>
+                                        <td class="py-1 pr-3 text-right font-medium text-gray-900 tabular-nums" x-text="row.area"></td>
+                                        <td class="py-1 text-right tabular-nums" x-show="crimeComparison">
+                                            <span class="text-gray-500" x-text="row.neighbourhood"></span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+
+                        {{-- Comparison loading / error states --}}
+                        <div x-show="comparisonLoading" class="mt-3 flex items-center gap-1.5 text-xs text-gray-400">
+                            <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                            Fetching neighbourhood comparison…
+                        </div>
+                        <div x-show="crimeComparison && !comparisonLoading" class="mt-2 text-xs text-gray-400" x-text="crimeComparison?.force"></div>
+                        <div x-show="comparisonError && !comparisonLoading" class="mt-2 text-xs text-gray-400">Neighbourhood comparison unavailable.</div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        {{-- Schools --}}
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <h2 class="text-sm font-semibold text-gray-700 mb-3">Schools within 1 mile</h2>
+            <div x-show="summaryLoading" class="space-y-2 animate-pulse">
+                <template x-for="i in 4" :key="i">
+                    <div class="flex justify-between">
+                        <div class="h-3 bg-gray-200 rounded w-40"></div>
+                        <div class="h-3 bg-gray-200 rounded w-12"></div>
+                    </div>
+                </template>
+            </div>
+            <div x-show="!summaryLoading && areaSummary">
+                <template x-if="areaSummary?.schools?.length === 0">
+                    <p class="text-sm text-gray-400">No schools found within 1 mile.</p>
+                </template>
+                <ul class="space-y-2">
+                    <template x-for="school in areaSummary?.schools ?? []" :key="school.urn">
+                        <li class="flex items-start justify-between gap-2 text-sm">
+                            <div class="min-w-0">
+                                <span class="text-gray-900 font-medium" x-text="school.name"></span>
+                                <template x-if="school.phase">
+                                    <span class="ml-1.5 inline-flex items-center rounded-full bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 cursor-help" x-text="school.phase" :title="phaseDescriptions[school.phase] ?? school.phase"></span>
+                                </template>
+                                <template x-if="!school.phase && school.type">
+                                    <span class="ml-1.5 inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 cursor-help" x-text="school.type" title="This school does not follow a standard phase structure"></span>
+                                </template>
+                            </div>
+                            <span class="text-gray-400 shrink-0 tabular-nums" x-text="formatDistance(school.distance_metres)"></span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
     {{-- Loading skeleton --}}
     <div x-show="loading" class="mt-6 space-y-3">
         <template x-for="i in 5" :key="i">

@@ -40,7 +40,7 @@ def run(filepath: str) -> None:
         ON CONFLICT (postcode) DO NOTHING
     """
 
-    for chunk in tqdm(pd.read_csv(filepath, header=None, chunksize=CHUNK_SIZE, dtype=str), desc="Postcodes"):
+    for chunk in tqdm(pd.read_csv(filepath, header=None, chunksize=CHUNK_SIZE, dtype=str, keep_default_na=False), desc="Postcodes"):
         rows = [r for r in (transform_row(row) for row in chunk.itertuples(index=False)) if r]
         if rows:
             db.bulk_insert(conn, sql, rows)
