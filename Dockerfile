@@ -21,6 +21,8 @@ RUN apk add --no-cache postgresql-dev libzip-dev \
     && rm -rf /tmp/pear
 
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 COPY --from=php-deps /app/vendor ./vendor
 COPY . .
@@ -30,3 +32,4 @@ RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cac
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
