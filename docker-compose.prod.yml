@@ -6,6 +6,7 @@ services:
         restart: unless-stopped
         env_file: .env
         volumes:
+            - ./.env:/var/www/html/.env
             - app-storage:/var/www/html/storage
         networks:
             - sail
