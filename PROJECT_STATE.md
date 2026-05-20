@@ -104,10 +104,42 @@ Pattern: interface + concrete for all repositories. Bound in `AppServiceProvider
 
 ---
 
+## Deployment (formalised — ready to use)
+
+Target: Digital Ocean droplet (Basic $12/month, 2 GB RAM, Ubuntu 24.04 LTS)
+
+### New files
+- `Dockerfile` — multi-stage PHP-FPM production image (php:8.3-fpm-alpine, no Node on server)
+- `docker-compose.prod.yml` — production stack: app + nginx + pgsql + redis
+- `docker/nginx/default.conf` — Nginx vhost (FastCGI to app:9000, static files from ./public)
+- `docker/php/opcache.ini` — production opcache settings
+- `.dockerignore`
+- `.env.production.example` — template (no secrets committed)
+- `.github/workflows/deploy.yml` — auto-deploy on push to master via SSH
+- `deploy/setup.sh` — one-time droplet provisioning guide
+
+### Deploy flow (automated via GitHub Actions)
+1. `git pull origin master`
+2. `docker run node:20-alpine npm ci && npm run build` (assets built in temp container)
+3. `docker compose -f docker-compose.prod.yml build app`
+4. `docker compose -f docker-compose.prod.yml up -d --remove-orphans`
+5. `php artisan migrate --force && php artisan optimize`
+
+### GitHub secrets required
+`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`
+
+### SSL
+Not yet configured. Run certbot on the droplet after a domain is pointed at it.
+
+---
+
+## Possible Future Features
+- **Local political data** — elected councillors + party affiliation per ward. Approach: MapIt (postcode → ward) + Democracy Club API. Blocked on data quality — no official national API equivalent to police.uk. Best-effort/community-maintained. Spike against Democracy Club API before committing to schema work.
+
 ## Open Questions
 - Monetisation model (Phase 4)
 - Potential .NET collaborator — revisit architecture if they join before Phase 3 is done
-- Deployment: leaning toward Azure free tier (12 months) to start — App Service + Flexible Postgres + Redis Cache. PostGIS needs manual extension enablement. Revisit Hetzner CX32 (~€9/month) when free tier expires or when ready to deploy full stack.
+- Domain name for SSL (needed before going live)
 
 ---
 

@@ -1,0 +1,14 @@
+.git
+.github
+vendor/
+node_modules/
+public/build/
+public/hot
+storage/
+.env
+.env.*
+!.env.production.example
+*.md
+tests/
+etl/
+deploy/

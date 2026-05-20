@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to droplet
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            git pull origin master
+
+            # Build frontend assets in a temporary Node container (no Node on server)
+            docker run --rm \
+              -v "$(pwd):/app" \
+              -w /app \
+              node:20-alpine \
+              sh -c "npm ci && npm run build"
+
+            # Rebuild PHP image
+            docker compose -f docker-compose.prod.yml build app
+
+            # Restart stack
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Laravel post-deploy steps
+            docker compose -f docker-compose.prod.yml exec -T app php artisan storage:link --force
+            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
+            docker compose -f docker-compose.prod.yml exec -T app php artisan package:discover --ansi
+            docker compose -f docker-compose.prod.yml exec -T app php artisan optimize
