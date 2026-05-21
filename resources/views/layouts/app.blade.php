@@ -11,7 +11,7 @@
         <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
                 <span class="text-xl font-semibold tracking-tight">Propwise</span>
-                <span class="ml-2 text-sm text-gray-500 hidden sm:inline">UK property sales explorer</span>
+                <span class="ml-2 text-sm text-gray-500 hidden sm:inline">UK property sales explore this has changedr</span>
             </div>
         </div>
     </header>
