@@ -1,8 +1,6 @@
 services:
     app:
-        build:
-            context: .
-            dockerfile: Dockerfile
+        image: ghcr.io/jrobertedwards/propwise:latest
         restart: unless-stopped
         env_file: .env
         volumes:

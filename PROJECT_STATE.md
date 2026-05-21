@@ -120,7 +120,7 @@ Target: Digital Ocean droplet (Basic $12/month, 2 GB RAM, Ubuntu 24.04 LTS)
 
 ### Deploy flow (automated via GitHub Actions)
 1. `git pull origin master`
-2. `docker run node:20-alpine npm ci && npm run build` (assets built in temp container)
+2. `docker run node:20-alpine npm ci && npm run build` (assets built in temp container, outputs to `./public/build/` on host)
 3. `docker compose -f docker-compose.prod.yml build app`
 4. `docker compose -f docker-compose.prod.yml up -d --remove-orphans`
 5. `php artisan migrate --force && php artisan optimize`
@@ -130,6 +130,22 @@ Target: Digital Ocean droplet (Basic $12/month, 2 GB RAM, Ubuntu 24.04 LTS)
 
 ### SSL
 Not yet configured. Run certbot on the droplet after a domain is pointed at it.
+
+### Volume mounts (app service)
+- `./.env:/var/www/html/.env` — env file; changes need `down`/`up -d` to take effect (not live)
+- `./public/build:/var/www/html/public/build:ro` — Vite assets; must exist in BOTH nginx and app containers (PHP reads manifest, nginx serves files)
+- `app-storage:/var/www/html/storage` — persistent logs, cache, sessions
+
+### Deployment gotchas (encountered during first setup)
+| Issue | Cause | Fix |
+|---|---|---|
+| `phpize` failed / `autoconf` not found | PECL builds from source, Alpine has no build tools by default | `apk add --virtual .build-deps autoconf g++ make` then `apk del .build-deps` after |
+| Telescope `class not found` | `TelescopeApplicationServiceProvider` not installed (`--no-dev`) but provider still registered | Guard with `class_exists()` in `bootstrap/providers.php` |
+| `storage/framework/views` missing | Named volume existed before `mkdir` ran in Dockerfile; Docker only copies image content to a volume on first creation | Entrypoint script runs `mkdir -p` + `chown` on every container start |
+| `VIEW_COMPILED_PATH` | `realpath()` returns `false` if the directory didn't exist when `config:cache` ran; bakes `false` into the cache | Set `VIEW_COMPILED_PATH=/var/www/html/storage/framework/views` explicitly in `.env` |
+| `APP_KEY` blank after editing `.env` | `env_file` injects env vars at container start time; editing the file on disk doesn't update the running container | `docker compose down && up -d` after any `.env` change |
+| Vite manifest not found | `public/build/` baked into image at build time (before npm ran); PHP reads manifest from app container, not nginx | Mount `./public/build:/var/www/html/public/build:ro` into the app service |
+| `tempnam()` warning → 500 | `storage/framework/views` not writable by `www-data` FPM worker | `chmod -R 777 storage` (temporary); permanent fix is the entrypoint chown |
 
 ---
 

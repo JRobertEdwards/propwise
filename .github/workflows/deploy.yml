@@ -4,9 +4,51 @@ on:
   push:
     branches: [master]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     runs-on: ubuntu-latest
+    needs: build
 
     steps:
       - name: Deploy to droplet
@@ -21,20 +63,22 @@ jobs:
 
             git pull origin master
 
-            # Build frontend assets in a temporary Node container (no Node on server)
-            docker run --rm \
-              -v "$(pwd):/app" \
-              -w /app \
-              node:20-alpine \
-              sh -c "npm ci && npm run build"
+            # Authenticate with GHCR (private package)
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
 
-            # Rebuild PHP image
-            docker compose -f docker-compose.prod.yml build app
+            # Pull the pre-built image
+            docker pull ghcr.io/jrobertedwards/propwise:latest
 
-            # Restart stack
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Extract Vite assets from image to host so nginx can serve them
+            CONTAINER_ID=$(docker create ghcr.io/jrobertedwards/propwise:latest)
+            rm -rf ./public/build
+            docker cp "${CONTAINER_ID}:/var/www/html/public/build" ./public/build
+            docker rm "${CONTAINER_ID}"
 
-            # Laravel post-deploy steps
+            # Start stack using pulled image (skip redundant pull by Compose)
+            docker compose -f docker-compose.prod.yml up -d --pull never --remove-orphans
+
+            # Laravel post-deploy
             docker compose -f docker-compose.prod.yml exec -T app php artisan storage:link --force
             docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
             docker compose -f docker-compose.prod.yml exec -T app php artisan package:discover --ansi

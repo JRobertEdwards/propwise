@@ -1,3 +1,11 @@
+FROM node:20-alpine AS frontend
+WORKDIR /app
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci
+COPY vite.config.js ./
+COPY resources/ ./resources/
+RUN npm run build
+
 FROM composer:2 AS php-deps
 WORKDIR /app
 COPY composer.json composer.lock ./
@@ -26,6 +34,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 COPY --from=php-deps /app/vendor ./vendor
 COPY . .
+COPY --from=frontend /app/public/build ./public/build
 
 RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chown -R www-data:www-data /var/www/html \
