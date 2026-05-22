@@ -10,5 +10,5 @@ storage/
 !.env.production.example
 *.md
 tests/
-etl/
+etl/data/
 deploy/

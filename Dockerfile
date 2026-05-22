@@ -28,6 +28,15 @@ RUN apk add --no-cache postgresql-dev libzip-dev \
     && apk del .build-deps \
     && rm -rf /tmp/pear
 
+RUN apk add --no-cache python3 py3-pip proj \
+    && apk add --no-cache --virtual .py-build-deps build-base python3-dev proj-dev \
+    && python3 -m venv /opt/etl-venv \
+    && /opt/etl-venv/bin/pip install --no-cache-dir \
+        pandas==2.2.3 psycopg2==2.9.10 python-dotenv==1.0.1 pyproj==3.7.1 tqdm==4.67.1 \
+    && apk del .py-build-deps
+
+ENV PATH="/opt/etl-venv/bin:$PATH"
+
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

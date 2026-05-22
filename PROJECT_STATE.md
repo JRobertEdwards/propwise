@@ -47,13 +47,22 @@ Pattern: interface + concrete for all repositories. Bound in `AppServiceProvider
 - `PostcodeLookupService` — normalises postcode string, delegates DB lookup to `PostcodeRepositoryInterface`
 - `CrimeDataService` — calls data.police.uk API; `getSummary()` for 1-mile radius counts, `getNeighbourhoodComparison()` for neighbourhood-level side-by-side counts. Redis cache per month/neighbourhood (24h TTL), boundary/meta cached 7 days.
 
+### Data Ingestion (Artisan Commands)
+- `ingest:land-registry` — downloads LR Price Paid CSV (monthly update or `--full` for complete), runs `import_land_registry.py`. Scheduled: 25th of each month at 02:00.
+- `ingest:postcodes` — downloads OS Code Point Open zip via OS Data Hub API (`OS_API_KEY`), concatenates area CSVs, runs `import_postcodes.py`. One-time, not scheduled.
+- `ingest:epc` — runs `import_epc.py` + `match_epc.py` on a `--file` path. EPC auto-download not yet implemented (bulk URL not straightforward).
+- Scheduler container added to `docker-compose.prod.yml` (runs `schedule:run` in 60s loop using the app image)
+- Python 3 + ETL deps added to `Dockerfile` via venv at `/opt/etl-venv`; `etl/data/` excluded from image via `.dockerignore`
+- `ETL_DB_HOST=pgsql` + `OS_API_KEY` added to `.env.production.example`
+- **Initial server setup order:** `ingest:postcodes` → `ingest:land-registry --full` → `ingest:epc --file=<path>`
+
 ### API Layer
 - `GET /api/search` — unauthenticated (auth deferred to Phase 4)
 - `GET /api/area-summary` — crime counts (12 months, 1mi radius) + nearby schools (1mi, limit 10)
 - `GET /api/crime-comparison` — neighbourhood-level crime counts for side-by-side comparison; fetches boundary via POST to data.police.uk, slow on first call, cached thereafter
 - Returns paginated `PropertySaleResource` with distance_metres, price_per_sqm, epc_match_confidence
 - `SearchFilters` DTO — carries search params, built from `SearchRequest` via `SearchFilters::fromRequest()`
-- **46 passing tests**
+- **61 passing tests**
 
 ### Frontend
 - Alpine.js v3 + Tailwind v4 + Vite — built assets in `public/build/`

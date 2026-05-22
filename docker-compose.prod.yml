@@ -69,6 +69,22 @@ services:
             retries: 3
             timeout: 5s
 
+    scheduler:
+        image: ghcr.io/jrobertedwards/propwise:latest
+        restart: unless-stopped
+        env_file: .env
+        volumes:
+            - ./.env:/var/www/html/.env
+            - app-storage:/var/www/html/storage
+        entrypoint: ["/bin/sh", "-c", "while true; do php artisan schedule:run --no-interaction 2>&1; sleep 60; done"]
+        networks:
+            - sail
+        depends_on:
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+
 networks:
     sail:
         driver: bridge

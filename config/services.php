@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'os' => [
+        'api_key' => env('OS_API_KEY'),
+    ],
+
 ];
