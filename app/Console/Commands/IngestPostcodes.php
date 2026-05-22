@@ -52,7 +52,7 @@ class IngestPostcodes extends Command
 
         $response = Http::sink($zipPath)
             ->timeout(3600)
-            ->get($entry['url'], ['key' => $apiKey]);
+            ->get($entry['url']); // URL already contains the API key and redirect flag
 
         if (! $response->successful()) {
             Log::error('IngestPostcodes: zip download failed', ['status' => $response->status()]);
@@ -67,10 +67,7 @@ class IngestPostcodes extends Command
         $zip = new ZipArchive();
 
         if ($zip->open($zipPath) !== true) {
-            $size = file_exists($zipPath) ? filesize($zipPath) : 0;
-            $preview = $size > 0 ? substr(file_get_contents($zipPath), 0, 500) : '(empty)';
-            $this->error("Failed to open zip (size: {$size} bytes). Content preview:");
-            $this->line($preview);
+            $this->error('Failed to open downloaded zip file.');
             @unlink($zipPath);
             return self::FAILURE;
         }
