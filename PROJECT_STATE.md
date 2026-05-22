@@ -79,6 +79,12 @@ Pattern: interface + concrete for all repositories. Bound in `AppServiceProvider
 
 ## Next Steps (Phase 3 — remaining)
 
+### Immediate (server data ingestion in progress)
+- **Land Registry full import** — currently running on the droplet (PID 91, `nohup`). ~30M rows, expect 30–90 min. Re-running is safe (`ON CONFLICT DO NOTHING`). Check progress: `tail -f ~/lr-import.log`
+- **EPC import** — needs manual bulk CSV download from https://epc.opendatacommunities.org/ then `php artisan ingest:epc --file=/path/to/epc.csv`. Missing EPC data does NOT cause 500s — fields return null.
+- **OS API key** — regenerate on OS Data Hub portal (key was exposed twice in terminal output); update `.env` on droplet
+
+### Features
 - Price trend chart — sold price / price-per-sqm over time for the searched area
 - Map view of results (Leaflet.js pinned to result locations)
 - Summary statistics panel — median price, median £/sqm, number of sales in period
