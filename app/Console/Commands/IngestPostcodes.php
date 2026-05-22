@@ -67,7 +67,10 @@ class IngestPostcodes extends Command
         $zip = new ZipArchive();
 
         if ($zip->open($zipPath) !== true) {
-            $this->error('Failed to open downloaded zip file.');
+            $size = file_exists($zipPath) ? filesize($zipPath) : 0;
+            $preview = $size > 0 ? substr(file_get_contents($zipPath), 0, 500) : '(empty)';
+            $this->error("Failed to open zip (size: {$size} bytes). Content preview:");
+            $this->line($preview);
             @unlink($zipPath);
             return self::FAILURE;
         }
