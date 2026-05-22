@@ -37,9 +37,10 @@ class IngestLandRegistry extends Command
 
         $this->info('Running ETL...');
 
+        $dbHost = config('database.connections.pgsql.host');
         $result = Process::path(base_path('etl'))
             ->timeout(7200)
-            ->run('python3 import_land_registry.py ' . escapeshellarg($path));
+            ->run('ETL_DB_HOST=' . escapeshellarg($dbHost) . ' python3 import_land_registry.py ' . escapeshellarg($path));
 
         @unlink($path);
 

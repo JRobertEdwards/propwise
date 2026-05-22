@@ -25,9 +25,8 @@ class IngestPostcodes extends Command
         Log::info('IngestPostcodes: fetching download metadata from OS API');
         $this->info('Fetching download URL from OS Data Hub...');
 
-        $meta = Http::withHeaders(['key' => $apiKey])
-            ->timeout(30)
-            ->get('https://api.os.uk/downloads/v1/products/CodePointOpen/downloads');
+        $meta = Http::timeout(30)
+            ->get('https://api.os.uk/downloads/v1/products/CodePointOpen/downloads', ['key' => $apiKey]);
 
         if (! $meta->successful()) {
             Log::error('IngestPostcodes: OS API failed', ['status' => $meta->status()]);
@@ -51,10 +50,9 @@ class IngestPostcodes extends Command
 
         $this->info('Downloading Code Point Open zip...');
 
-        $response = Http::withHeaders(['key' => $apiKey])
-            ->sink($zipPath)
+        $response = Http::sink($zipPath)
             ->timeout(3600)
-            ->get($entry['url']);
+            ->get($entry['url'], ['key' => $apiKey]);
 
         if (! $response->successful()) {
             Log::error('IngestPostcodes: zip download failed', ['status' => $response->status()]);
@@ -87,9 +85,10 @@ class IngestPostcodes extends Command
 
         $this->info('Running ETL...');
 
+        $dbHost = config('database.connections.pgsql.host');
         $result = Process::path(base_path('etl'))
             ->timeout(3600)
-            ->run('python3 import_postcodes.py ' . escapeshellarg($combinedPath));
+            ->run('ETL_DB_HOST=' . escapeshellarg($dbHost) . ' python3 import_postcodes.py ' . escapeshellarg($combinedPath));
 
         @unlink($combinedPath);
 

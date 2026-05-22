@@ -29,9 +29,10 @@ class IngestEpc extends Command
         Log::info('IngestEpc: starting import', ['file' => $file]);
         $this->info('Importing EPC certificates...');
 
+        $dbHost = config('database.connections.pgsql.host');
         $importResult = Process::path(base_path('etl'))
             ->timeout(7200)
-            ->run('python3 import_epc.py ' . escapeshellarg($file));
+            ->run('ETL_DB_HOST=' . escapeshellarg($dbHost) . ' python3 import_epc.py ' . escapeshellarg($file));
 
         if (! $importResult->successful()) {
             Log::error('IngestEpc: import_epc.py failed', ['stderr' => $importResult->errorOutput()]);
@@ -43,7 +44,7 @@ class IngestEpc extends Command
 
         $matchResult = Process::path(base_path('etl'))
             ->timeout(3600)
-            ->run('python3 match_epc.py');
+            ->run('ETL_DB_HOST=' . escapeshellarg($dbHost) . ' python3 match_epc.py');
 
         if (! $matchResult->successful()) {
             Log::error('IngestEpc: match_epc.py failed', ['stderr' => $matchResult->errorOutput()]);
