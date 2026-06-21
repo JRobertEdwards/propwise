@@ -80,7 +80,8 @@ Pattern: interface + concrete for all repositories. Bound in `AppServiceProvider
 ## Next Steps (Phase 3 — remaining)
 
 ### Immediate (server data ingestion in progress)
-- **Land Registry full import** — currently running on the droplet (PID 91, `nohup`). ~30M rows, expect 30–90 min. Re-running is safe (`ON CONFLICT DO NOTHING`). Check progress: `tail -f ~/lr-import.log`
+- **`populate_locations()` UPDATE in progress** — the LR import (29,414,827 rows) completed but `populate_locations()` ran when `postcodes` was empty, leaving all `location` columns NULL. The fix UPDATE is now running as a single transaction (PID 34407 in the pgsql container). WAL LSN was confirmed advancing so it is making progress but will take several hours. **Do not cancel** — it will roll back all progress. Once it completes, the frontend search will return results. Monitor with: `docker compose -f docker-compose.prod.yml exec pgsql psql -U propwise -d propwise -c "SELECT pid, state, now() - query_start AS duration FROM pg_stat_activity WHERE datname = 'propwise' AND state != 'idle';"`
+- **Verify after UPDATE completes** — run `SELECT COUNT(*) FROM property_sales WHERE location IS NOT NULL;` and test a postcode search on the frontend (e.g. SE193NF, 2 miles, no filters).
 - **EPC import** — needs manual bulk CSV download from https://epc.opendatacommunities.org/ then `php artisan ingest:epc --file=/path/to/epc.csv`. Missing EPC data does NOT cause 500s — fields return null.
 - **OS API key** — regenerate on OS Data Hub portal (key was exposed twice in terminal output); update `.env` on droplet
 

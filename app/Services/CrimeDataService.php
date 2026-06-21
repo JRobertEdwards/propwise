@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -15,22 +17,48 @@ class CrimeDataService
 
     public function getSummary(float $lat, float $lng): array
     {
-        $counts = [];
+        $months = array_map(
+            fn($i) => Carbon::now()->subMonths($i)->format('Y-m'),
+            range(1, self::MONTHS)
+        );
 
-        for ($i = 1; $i <= self::MONTHS; $i++) {
-            $month = Carbon::now()->subMonths($i)->format('Y-m');
-            $cacheKey = "crime:{$lat}:{$lng}:{$month}";
+        $crimeLists = [];
+        $uncached = [];
 
-            $crimes = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($lat, $lng, $month) {
-                $response = Http::timeout(10)->get(self::API_BASE . '/crimes-street/all-crime', [
-                    'lat' => $lat,
-                    'lng' => $lng,
-                    'date' => $month,
-                ]);
+        foreach ($months as $month) {
+            $key = "crime:{$lat}:{$lng}:{$month}";
+            $cached = Cache::get($key);
+            if ($cached !== null) {
+                $crimeLists[$month] = $cached;
+            } else {
+                $uncached[$month] = $key;
+            }
+        }
 
-                return $response->successful() ? $response->json() : [];
+        if (!empty($uncached)) {
+            $responses = Http::pool(function (Pool $pool) use ($lat, $lng, $uncached) {
+                return array_map(
+                    fn($month) => $pool->as($month)->timeout(10)->get(self::API_BASE . '/crimes-street/all-crime', [
+                        'lat' => $lat,
+                        'lng' => $lng,
+                        'date' => $month,
+                    ]),
+                    array_keys($uncached)
+                );
             });
 
+            foreach ($uncached as $month => $key) {
+                $response = $responses[$month] ?? null;
+                if ($response instanceof Response && $response->successful()) {
+                    $data = $response->json() ?? [];
+                    Cache::put($key, $data, self::CACHE_TTL);
+                    $crimeLists[$month] = $data;
+                }
+            }
+        }
+
+        $counts = [];
+        foreach ($crimeLists as $crimes) {
             foreach ($crimes as $crime) {
                 $category = $crime['category'] ?? 'unknown';
                 $counts[$category] = ($counts[$category] ?? 0) + 1;
@@ -84,71 +112,118 @@ class CrimeDataService
     {
         $cacheKey = "neighbourhood:location:{$lat}:{$lng}";
 
-        return Cache::remember($cacheKey, self::META_TTL, function () use ($lat, $lng) {
-            $response = Http::timeout(10)->get(self::API_BASE . '/locate-neighbourhood', [
-                'q' => "{$lat},{$lng}",
-            ]);
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-            return $response->successful() ? $response->json() : null;
-        });
+        $response = Http::timeout(10)->get(self::API_BASE . '/locate-neighbourhood', [
+            'q' => "{$lat},{$lng}",
+        ]);
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $data = $response->json();
+        Cache::put($cacheKey, $data, self::META_TTL);
+        return $data;
     }
 
     private function getNeighbourhoodMeta(string $forceId, string $neighbourhoodId): ?array
     {
         $cacheKey = "neighbourhood:meta:{$forceId}:{$neighbourhoodId}";
 
-        return Cache::remember($cacheKey, self::META_TTL, function () use ($forceId, $neighbourhoodId) {
-            [$nRes, $fRes] = [
-                Http::timeout(10)->get(self::API_BASE . "/{$forceId}/{$neighbourhoodId}"),
-                Http::timeout(10)->get(self::API_BASE . "/forces/{$forceId}"),
-            ];
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-            if (!$nRes->successful() || !$fRes->successful()) {
-                return null;
-            }
+        [$nRes, $fRes] = [
+            Http::timeout(10)->get(self::API_BASE . "/{$forceId}/{$neighbourhoodId}"),
+            Http::timeout(10)->get(self::API_BASE . "/forces/{$forceId}"),
+        ];
 
-            return [
-                'neighbourhood' => $nRes->json('name'),
-                'force' => $fRes->json('name'),
-            ];
-        });
+        if (!$nRes->successful() || !$fRes->successful()) {
+            return null;
+        }
+
+        $data = [
+            'neighbourhood' => $nRes->json('name'),
+            'force' => $fRes->json('name'),
+        ];
+
+        Cache::put($cacheKey, $data, self::META_TTL);
+        return $data;
     }
 
     private function getNeighbourhoodBoundary(string $forceId, string $neighbourhoodId): ?string
     {
         $cacheKey = "neighbourhood:boundary:{$forceId}:{$neighbourhoodId}";
 
-        return Cache::remember($cacheKey, self::META_TTL, function () use ($forceId, $neighbourhoodId) {
-            $response = Http::timeout(10)->get(self::API_BASE . "/{$forceId}/{$neighbourhoodId}/boundary");
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-            if (!$response->successful()) {
-                return null;
-            }
+        $response = Http::timeout(10)->get(self::API_BASE . "/{$forceId}/{$neighbourhoodId}/boundary");
 
-            return implode(':', array_map(
-                fn($p) => "{$p['latitude']},{$p['longitude']}",
-                $response->json()
-            ));
-        });
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $data = implode(':', array_map(
+            fn($p) => "{$p['latitude']},{$p['longitude']}",
+            $response->json()
+        ));
+
+        Cache::put($cacheKey, $data, self::META_TTL);
+        return $data;
     }
 
     private function fetchNeighbourhoodCrimeCounts(string $forceId, string $neighbourhoodId, string $polygon): array
     {
-        $counts = [];
+        $months = array_map(
+            fn($i) => Carbon::now()->subMonths($i)->format('Y-m'),
+            range(1, self::MONTHS)
+        );
 
-        for ($i = 1; $i <= self::MONTHS; $i++) {
-            $month = Carbon::now()->subMonths($i)->format('Y-m');
-            $cacheKey = "neighbourhood:crimes:{$forceId}:{$neighbourhoodId}:{$month}";
+        $crimeLists = [];
+        $uncached = [];
 
-            $crimes = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($polygon, $month) {
-                $response = Http::timeout(30)->asForm()->post(self::API_BASE . '/crimes-street/all-crime', [
-                    'poly' => $polygon,
-                    'date' => $month,
-                ]);
+        foreach ($months as $month) {
+            $key = "neighbourhood:crimes:{$forceId}:{$neighbourhoodId}:{$month}";
+            $cached = Cache::get($key);
+            if ($cached !== null) {
+                $crimeLists[$month] = $cached;
+            } else {
+                $uncached[$month] = $key;
+            }
+        }
 
-                return $response->successful() ? $response->json() : [];
+        if (!empty($uncached)) {
+            $responses = Http::pool(function (Pool $pool) use ($polygon, $uncached) {
+                return array_map(
+                    fn($month) => $pool->as($month)->timeout(30)->asForm()->post(
+                        self::API_BASE . '/crimes-street/all-crime',
+                        ['poly' => $polygon, 'date' => $month]
+                    ),
+                    array_keys($uncached)
+                );
             });
 
+            foreach ($uncached as $month => $key) {
+                $response = $responses[$month] ?? null;
+                if ($response instanceof Response && $response->successful()) {
+                    $data = $response->json() ?? [];
+                    Cache::put($key, $data, self::CACHE_TTL);
+                    $crimeLists[$month] = $data;
+                }
+            }
+        }
+
+        $counts = [];
+        foreach ($crimeLists as $crimes) {
             foreach ((array) $crimes as $crime) {
                 $category = $crime['category'] ?? 'unknown';
                 $counts[$category] = ($counts[$category] ?? 0) + 1;

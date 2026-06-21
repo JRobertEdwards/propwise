@@ -25,6 +25,14 @@ class PropertySaleResource extends JsonResource
             'distance_metres'      => isset($this->resource->distance_metres)
                 ? (int) round($this->resource->distance_metres)
                 : null,
+            'sale_count'           => (int) ($this->resource->sale_count ?? 1),
+            'sale_history'         => collect($this->saleHistory ?? [])
+                ->map(fn ($h) => [
+                    'sale_date'     => $h->sale_date->toDateString(),
+                    'sold_price'    => (int) $h->price,
+                    'property_type' => $h->property_type,
+                    'new_build'     => (bool) $h->new_build,
+                ])->values(),
         ];
     }
 }

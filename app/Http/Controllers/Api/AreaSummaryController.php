@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PostcodeRequest;
 use App\Http\Resources\SchoolResource;
 use App\Repositories\Contracts\SchoolRepositoryInterface;
 use App\Services\CrimeDataService;
 use App\Services\PostcodeLookupService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class AreaSummaryController extends Controller
 {
@@ -18,10 +18,8 @@ class AreaSummaryController extends Controller
         private SchoolRepositoryInterface $schools,
     ) {}
 
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(PostcodeRequest $request): JsonResponse
     {
-        $request->validate(['postcode' => 'required|string|max:8']);
-
         $postcode = $this->postcodeLookup->lookup($request->input('postcode'));
 
         if (!$postcode) {
