@@ -16,7 +16,7 @@ RUN composer install \
     --optimize-autoloader \
     --prefer-dist
 
-FROM php:8.3-fpm-alpine
+FROM php:8.3-fpm-alpine3.21
 WORKDIR /var/www/html
 
 RUN apk add --no-cache postgresql-dev libzip-dev \
