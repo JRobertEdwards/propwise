@@ -32,6 +32,7 @@ class PropertySaleResource extends JsonResource
                     'sold_price'    => (int) $h->price,
                     'property_type' => $h->property_type,
                     'new_build'     => (bool) $h->new_build,
+                    'estate_type'   => $h->estate_type,
                 ])->values(),
         ];
     }

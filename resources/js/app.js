@@ -19,6 +19,7 @@ Alpine.data('search', () => ({
     crimeComparison: null,
     comparisonLoading: false,
     comparisonError: false,
+    expandedHistory: {},
 
     typeLabels: { D: 'Detached', S: 'Semi-detached', T: 'Terraced', F: 'Flat', O: 'Other' },
 
@@ -30,6 +31,10 @@ Alpine.data('search', () => ({
         'Secondary': 'Ages 11–16/18',
         'All-through': 'Ages 4–18',
         '16 plus': 'Ages 16–18',
+    },
+
+    toggleHistory(id) {
+        this.expandedHistory[id] = !this.expandedHistory[id];
     },
 
     async search(page = 1) {
@@ -46,6 +51,7 @@ Alpine.data('search', () => ({
             this.comparisonLoading = true;
             this.comparisonError = false;
             this.crimeComparison = null;
+            this.expandedHistory = {};
         }
 
         const params = new URLSearchParams({ postcode: this.postcode, radius: this.radius, page });

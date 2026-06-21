@@ -7,12 +7,10 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-full bg-gray-50 text-gray-900 antialiased">
-    <header class="bg-white border-b border-gray-200">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div>
-                <span class="text-xl font-semibold tracking-tight">Propwise</span>
-                <span class="ml-2 text-sm text-gray-500 hidden sm:inline">UK property sales explorer</span>
-            </div>
+    <header class="bg-gray-950 border-b border-white/10">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+            <span class="text-white font-semibold text-lg tracking-tight">Propwise</span>
+            <span class="text-gray-500 text-sm hidden sm:inline">UK property sales explorer</span>
         </div>
     </header>
 

@@ -18,10 +18,10 @@ class PropertySaleRepository implements PropertySaleRepositoryInterface
             ->when($filters->dateFrom, fn ($q, $from) => $q->soldBetween($from, $filters->dateTo ?? now()->toDateString()))
             ->when($filters->houseNumber, fn ($q, $hn) => $q->whereRaw('paon ILIKE ?', [$hn . '%']))
             ->selectRaw(
-                'property_sales.*,
-                 ROW_NUMBER() OVER (PARTITION BY paon, saon, street, postcode ORDER BY sale_date DESC) AS rn,
-                 COUNT(*) OVER (PARTITION BY paon, saon, street, postcode) AS sale_count,
-                 ST_Distance(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) AS distance_metres',
+                "property_sales.*,
+                 ROW_NUMBER() OVER (PARTITION BY UPPER(TRIM(COALESCE(paon,''))), UPPER(TRIM(COALESCE(saon,''))), UPPER(TRIM(COALESCE(street,''))), UPPER(TRIM(postcode)) ORDER BY sale_date DESC) AS rn,
+                 COUNT(*) OVER (PARTITION BY UPPER(TRIM(COALESCE(paon,''))), UPPER(TRIM(COALESCE(saon,''))), UPPER(TRIM(COALESCE(street,''))), UPPER(TRIM(postcode))) AS sale_count,
+                 ST_Distance(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) AS distance_metres",
                 [$filters->lng, $filters->lat]
             );
 
@@ -56,13 +56,10 @@ class PropertySaleRepository implements PropertySaleRepositoryInterface
         $query = PropertySale::query()->where(function ($outer) use ($multiSale) {
             foreach ($multiSale as $item) {
                 $outer->orWhere(function ($q) use ($item) {
-                    $q->where('paon', $item->paon)->where('postcode', $item->postcode);
-                    $item->saon === null
-                        ? $q->whereNull('saon')
-                        : $q->where('saon', $item->saon);
-                    $item->street === null
-                        ? $q->whereNull('street')
-                        : $q->where('street', $item->street);
+                    $q->whereRaw("UPPER(TRIM(COALESCE(paon,''))) = ?", [strtoupper(trim($item->paon ?? ''))])
+                      ->whereRaw("UPPER(TRIM(COALESCE(saon,''))) = ?", [strtoupper(trim($item->saon ?? ''))])
+                      ->whereRaw("UPPER(TRIM(COALESCE(street,''))) = ?", [strtoupper(trim($item->street ?? ''))])
+                      ->whereRaw('UPPER(TRIM(postcode)) = ?', [strtoupper(trim($item->postcode))]);
                 });
             }
         })->orderBy('sale_date', 'desc');
@@ -80,6 +77,9 @@ class PropertySaleRepository implements PropertySaleRepositoryInterface
 
     private function tupleKey(PropertySale $row): string
     {
-        return $row->paon . '|' . ($row->saon ?? '') . '|' . ($row->street ?? '') . '|' . $row->postcode;
+        return strtoupper(trim($row->paon ?? ''))
+            . '|' . strtoupper(trim($row->saon ?? ''))
+            . '|' . strtoupper(trim($row->street ?? ''))
+            . '|' . strtoupper(trim($row->postcode));
     }
 }
